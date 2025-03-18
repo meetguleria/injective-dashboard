@@ -4,7 +4,7 @@ from pyinjective.core.network import Network
 from services.data_aggregator import DataAggregator
 
 # Create a global data aggregator instance
-aggregator = DataAggregator(window_size=50)
+aggregator = DataAggregator(window_size=50)  # Use a smaller window for quicker signal generation
 
 async def stream_orderbook(market_id: str, network: str = "mainnet"):
     network_obj = Network.mainnet() if network == "mainnet" else Network.testnet()
@@ -12,11 +12,11 @@ async def stream_orderbook(market_id: str, network: str = "mainnet"):
     queue = asyncio.Queue()
     
     def callback(event):
-        print("Callback triggered with event:", event)  # Debug print here
+        #print("Callback triggered with event:", event)  # This will log raw updates in uvicorn logs
         asyncio.create_task(queue.put(event))
     
     def on_status_callback(exception):
-        print(f"Stream error for market {market_id}: {exception}")
+        print(f"Error streaming order book for market {market_id}: {exception}")
     
     def on_end_callback():
         print("Stream ended for market", market_id)
@@ -32,10 +32,10 @@ async def stream_orderbook(market_id: str, network: str = "mainnet"):
     
     while True:
         event = await queue.get()
-        print(f"Received orderbook update for {market_id}: {event}")
-        # Update aggregator with the new event
+        #print(f"Received orderbook update for {market_id}: {event}")  # Logs raw update
         aggregator.add_update(event)
         signals = aggregator.compute_signals()
         if signals:
-            print("Computed Signals:", signals)        
-        yield event
+            print("Computed Signals:", signals)  # Logs signals in uvicorn logs
+            # Yield only the computed signals so that the WS client sees them
+            yield signals
